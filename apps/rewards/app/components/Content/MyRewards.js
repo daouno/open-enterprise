@@ -46,14 +46,14 @@ const ReadyStatus = (theme) => (
   </div>
 )
 
-const ClaimedStatus = (theme) => (
+const ClaimedStatus = (theme, timeClaimed) => (
   <div style={{ display: 'flex' }}>
     <IconCircleCheck style={{
       marginRight: '4px',
       marginTop: '-2px',
       color: theme.positive,
     }}/>
-    Claimed
+    Claimed {new Date(parseInt(timeClaimed + '000')).toLocaleString()}
   </div>
 )
 
@@ -143,7 +143,7 @@ const renderOneTimeDividend = (reward, amountTokens) => {
     </Text>
   )
   const disbursementDate = dateReference.toDateString()
-  const status = timeClaimed > 0 ? ClaimedStatus(theme) : (
+  const status = timeClaimed > 0 ? ClaimedStatus(theme, timeClaimed) : (
     Date.now() > endDate ? ReadyStatus(theme) : PendingStatus(theme)
   )
   return [ description, disbursementDate, status, displayAmount ]
@@ -156,7 +156,8 @@ const renderRecurringDividend = (reward, amountTokens) => {
     userRewardAmount,
     amountToken,
     claims,
-    disbursements
+    disbursements,
+    timeClaimed,
   } = reward
   const decimals = amountTokens.find(t => t.symbol === amountToken).decimals
   const displayAmount = (
@@ -165,10 +166,11 @@ const renderRecurringDividend = (reward, amountTokens) => {
     </Text>
   )
   const disbursementDate = (disbursements[claims] || disbursements[claims-1]).toDateString()
-  const status = claims === disbursements.length ? ClaimedStatus(theme) : (
-    Date.now() > disbursements[claims].getTime() ? ReadyStatus(theme) :
-      PendingStatus(theme)
-  )
+  const status = claims === disbursements.length ?
+    ClaimedStatus(theme, timeClaimed) : (
+      Date.now() > disbursements[claims].getTime() ? ReadyStatus(theme) :
+        PendingStatus(theme)
+    )
   return [ description, disbursementDate, status, displayAmount ]
 }
 
@@ -179,7 +181,7 @@ const renderOneTimeMerit = (reward, amountTokens) => {
     userRewardAmount,
     amountToken,
     endDate,
-    timeClaimed
+    timeClaimed,
   } = reward
   const decimals = amountTokens.find(t => t.symbol === amountToken).decimals
   const displayAmount = (
@@ -188,7 +190,7 @@ const renderOneTimeMerit = (reward, amountTokens) => {
     </Text>
   )
   const disbursementDate = (new Date(endDate)).toDateString()
-  const status = timeClaimed > 0 ? ClaimedStatus(theme) : (
+  const status = timeClaimed > 0 ? ClaimedStatus(theme, timeClaimed) : (
     Date.now() > endDate ? ReadyStatus(theme) : PendingStatus(theme)
   )
   return [ description, disbursementDate, status, displayAmount ]
