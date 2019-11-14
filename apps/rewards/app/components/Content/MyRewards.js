@@ -5,9 +5,6 @@ import {
   ContextMenu,
   ContextMenuItem,
   DataView,
-  IconCheck,
-  IconCircleCheck,
-  IconClock,
   IconCoin,
   IconView,
   Text,
@@ -22,40 +19,7 @@ import { Empty } from '../Card'
 import Metrics from './Metrics'
 import { useAppState } from '@aragon/api-react'
 import BigNumber from 'bignumber.js'
-import { displayCurrency } from '../../utils/helpers'
-
-const PendingStatus = (theme) => (
-  <div style={{ display: 'flex' }}>
-    <IconClock style={{
-      marginRight: '4px',
-      marginTop: '-2px',
-      color: theme.warning,
-    }}/>
-    Pending
-  </div>
-)
-
-const ReadyStatus = (theme) => (
-  <div style={{ display: 'flex' }}>
-    <IconCheck style={{
-      marginRight: '4px',
-      marginTop: '-2px',
-      color: theme.positive,
-    }}/>
-    Ready to claim
-  </div>
-)
-
-const ClaimedStatus = (theme) => (
-  <div style={{ display: 'flex' }}>
-    <IconCircleCheck style={{
-      marginRight: '4px',
-      marginTop: '-2px',
-      color: theme.positive,
-    }}/>
-    Claimed
-  </div>
-)
+import { displayCurrency, getStatus } from '../../utils/helpers'
 
 const MyRewards = ({
   myRewards,
@@ -128,14 +92,7 @@ const renderReward = (reward) => {
 
 const renderOneTimeDividend = (reward, amountTokens) => {
   const theme = useTheme()
-  const {
-    description,
-    userRewardAmount,
-    amountToken,
-    dateReference,
-    timeClaimed,
-    endDate
-  } = reward
+  const { description, userRewardAmount, amountToken, dateReference } = reward
   const decimals = amountTokens.find(t => t.symbol === amountToken).decimals
   const displayAmount = (
     <Text color={String(theme.positive)}>
@@ -143,9 +100,7 @@ const renderOneTimeDividend = (reward, amountTokens) => {
     </Text>
   )
   const disbursementDate = dateReference.toDateString()
-  const status = timeClaimed > 0 ? ClaimedStatus(theme) : (
-    Date.now() > endDate ? ReadyStatus(theme) : PendingStatus(theme)
-  )
+  const status = getStatus(reward, theme)
   return [ description, disbursementDate, status, displayAmount ]
 }
 
@@ -165,22 +120,13 @@ const renderRecurringDividend = (reward, amountTokens) => {
     </Text>
   )
   const disbursementDate = (disbursements[claims] || disbursements[claims-1]).toDateString()
-  const status = claims === disbursements.length ? ClaimedStatus(theme) : (
-    Date.now() > disbursements[claims].getTime() ? ReadyStatus(theme) :
-      PendingStatus(theme)
-  )
+  const status = getStatus(reward, theme)
   return [ description, disbursementDate, status, displayAmount ]
 }
 
 const renderOneTimeMerit = (reward, amountTokens) => {
   const theme = useTheme()
-  const {
-    description,
-    userRewardAmount,
-    amountToken,
-    endDate,
-    timeClaimed
-  } = reward
+  const { description, userRewardAmount, amountToken, endDate } = reward
   const decimals = amountTokens.find(t => t.symbol === amountToken).decimals
   const displayAmount = (
     <Text color={String(theme.positive)}>
@@ -188,9 +134,7 @@ const renderOneTimeMerit = (reward, amountTokens) => {
     </Text>
   )
   const disbursementDate = (new Date(endDate)).toDateString()
-  const status = timeClaimed > 0 ? ClaimedStatus(theme) : (
-    Date.now() > endDate ? ReadyStatus(theme) : PendingStatus(theme)
-  )
+  const status = getStatus(reward, theme)
   return [ description, disbursementDate, status, displayAmount ]
 }
 
