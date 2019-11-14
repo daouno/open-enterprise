@@ -7,9 +7,10 @@ const ARAGON_APPS = [
   //   { name: 'survey', contractName: 'Survey' },
   //   { name: 'payroll', contractName: 'Payroll' },
   { name: 'finance', contractName: 'Finance' },
-  { name: 'token-manager', contractName: 'TokenManager' },
+  { name: 'token-manager-custom', contractName: 'TokenManager' },
+  { name: 'whitelist-oracle', contractName: 'WhitelistOracle'},
 ]
-  
+
 const ARAGON_APP_IDS = ARAGON_APPS.reduce((ids, { name }) => {
   ids[name] = namehash(`${name}.aragonpm.eth`)
   return ids

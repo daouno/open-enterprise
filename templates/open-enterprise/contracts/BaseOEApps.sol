@@ -1,18 +1,13 @@
 pragma solidity 0.4.24;
 
-import "@aragon/templates-shared/contracts/TokenCache.sol";
-
+import "./BaseCache.sol";
 import "@tps/apps-address-book/contracts/AddressBook.sol";
 import "@tps/apps-allocations/contracts/Allocations.sol";
 import "@tps/apps-discussions/contracts/DiscussionApp.sol";
-import { DotVoting } from "@tps/apps-dot-voting/contracts/DotVoting.sol";
 import "@tps/apps-projects/contracts/Projects.sol";
 import "@tps/apps-rewards/contracts/Rewards.sol";
 
-import "./BaseCache.sol";
-
-
-contract BaseOEApps is BaseCache, TokenCache {
+contract BaseOEApps is BaseCache {
     // /* Hardcoded constant to save gas
     bytes32 constant internal ADDRESS_BOOK_APP_ID = apmNamehash("address-book");              // address-book.aragonpm.eth
     bytes32 constant internal ALLOCATIONS_APP_ID = apmNamehash("allocations");              // allocations.aragonpm.eth;
@@ -132,8 +127,8 @@ contract BaseOEApps is BaseCache, TokenCache {
 
     /* PROJECTS */
 
-    function _installProjectsApp(Kernel _dao, Vault _vault, MiniMeToken _token) internal returns (Projects) {
-        bytes memory initializeData = abi.encodeWithSelector(Projects(0).initialize.selector, bountiesRegistry, _vault, _token);
+    function _installProjectsApp(Kernel _dao, Vault _vault) internal returns (Projects) {
+        bytes memory initializeData = abi.encodeWithSelector(Projects(0).initialize.selector, bountiesRegistry, _vault);
         return Projects(_installNonDefaultApp(_dao, PROJECTS_APP_ID, initializeData));
     }
 

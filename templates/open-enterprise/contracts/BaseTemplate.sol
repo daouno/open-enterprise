@@ -20,8 +20,8 @@ import "@aragon/os/contracts/common/Uint256Helpers.sol";
 import "@aragon/id/contracts/IFIFSResolvingRegistrar.sol";
 
 // Custom Autark Apps
-import "@autark/apps-token-manager-custom/contracts/TokenManager.sol";
-import "@autark/apps-whitelist-oracle/contracts/WhitelistOracle.sol";
+import "../../../shared/integrations/token-manager-custom/contracts/TokenManager.sol";
+import "../../../shared/integrations/whitelist-oracle/contracts/WhitelistOracle.sol";
 
 
 contract BaseTemplate is APMNamehash, IsContract {
@@ -340,9 +340,14 @@ contract BaseTemplate is APMNamehash, IsContract {
 
     /* WHITELIST ORACLE */
 
-    function _installWhitelistOracleApp(Kernel _dao, address[] _whitelistedSenders) internal returns (WhitelistOracle) {
-        bytes memory initializeData = abi.encodeWithSelector(WhitelistOracle(0).initialize.selector, _whitelistedSenders);
+    function _installWhitelistOracleApp(Kernel _dao/*, address[] _whitelistedSenders*/) internal returns (WhitelistOracle) {
+        bytes memory initializeData = abi.encodeWithSelector(WhitelistOracle(0).initialize.selector/*, _whitelistedSenders*/);
         return WhitelistOracle(_installNonDefaultApp(_dao, WHITELIST_ORACLE_APP_ID, initializeData));
+    }
+
+    function _createWhitelistPermissions(ACL _acl, WhitelistOracle _whitelist, address _grantee, address _manager) internal {
+        _acl.createPermission(_grantee, _whitelist, _whitelist.ADD_SENDER_ROLE(), _manager);
+        _acl.createPermission(_grantee, _whitelist, _whitelist.REMOVE_SENDER_ROLE(), _manager);
     }
 
     /* EVM SCRIPTS */

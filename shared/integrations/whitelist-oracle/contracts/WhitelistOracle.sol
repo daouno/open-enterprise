@@ -21,19 +21,21 @@ contract WhitelistOracle is AragonApp, ITransferOracle {
 
     bytes32 public constant ADD_SENDER_ROLE = 0x649896fce4266201ed0200f1f18d2316c4c0be48c949b18cccd5ef15621249e3;
     bytes32 public constant REMOVE_SENDER_ROLE = 0x9d7a040f5c6540f643d8a175f70736671ffabd35f3de2e4176cfcbbe9cd71acb;
-    
+
     string private constant ERROR_SENDER_ALREADY_ADDED = "WO_ERROR_SENDER_ALREADY_ADDED";
     string private constant ERROR_SENDER_NOT_EXIST = "WO_ERROR_SENDER_NOT_EXIST";
     event ValidSenderAdded(address _sender);
     event ValidSenderRemoved(address _sender);
-    
+
     mapping(address => bool) validSender;
 
-    function initialize(address[] _senders) external onlyInit {
+    function initialize(/*address[] _senders*/) external onlyInit {
         initialized();
+        /*
         for(uint256 i = 0; i < _senders.length; i++){
             validSender[_senders[i]] = true;
         }
+        */
     }
 
     function addSender(address _sender) external auth(ADD_SENDER_ROLE){
