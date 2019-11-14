@@ -56,11 +56,14 @@ contract OpenEnterpriseTemplate is BaseOEApps {
         TokenManager tokenManager2 = TokenManager(0);
         WhitelistOracle whitelist = WhitelistOracle(0);
         if (address(token2) != address(0)) {
+            whitelist = _installWhitelistOracleApp(dao, vault, bountiesRegistry);
+            /* Code to get around WhitelistOracle initialization issue
             whitelist = _installWhitelistOracleApp(dao);
             _createPermissionForTemplate(acl, whitelist, whitelist.ADD_SENDER_ROLE());
             whitelist.addSender(address(vault));
             whitelist.addSender(address(bountiesRegistry));
             _removePermissionFromTemplate(acl, whitelist, whitelist.ADD_SENDER_ROLE());
+            */
             tokenManager2 = _installTokenManagerApp(dao, token2, true, TOKEN_MAX_PER_ACCOUNT);
             _mintTokens(acl, tokenManager2, _members2, _stakes2);
             _setOracle(acl, tokenManager2, whitelist);
