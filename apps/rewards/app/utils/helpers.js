@@ -2,6 +2,9 @@ import {
   ETH_DECIMALS,
   ETH_DECIMALS_NUMBER,
   RECURRING_DIVIDEND,
+  PENDING,
+  READY,
+  CLAIMED,
 } from './constants'
 import BigNumber from 'bignumber.js'
 import { IconCheck, IconCircleCheck, IconClock } from '@aragon/ui'
@@ -48,16 +51,30 @@ const ClaimedStatus = (theme) => (
   </div>
 )
 
-export const getStatus = (
-  { rewardType, timeClaimed, endDate, claims, disbursements },
-  theme
-) => {
+export const getStatusId = ({
+  rewardType,
+  timeClaimed,
+  endDate,
+  claims,
+  disbursements,
+}) => {
   if (rewardType === RECURRING_DIVIDEND)
-    return claims === disbursements.length ? ClaimedStatus(theme) : (
-      Date.now() > disbursements[claims].getTime() ? ReadyStatus(theme) :
-        PendingStatus(theme)
+    return claims === disbursements.length ? CLAIMED : (
+      Date.now() > disbursements[claims].getTime() ? READY : PENDING
     )
-  else return timeClaimed > 0 ? ClaimedStatus(theme) : (
-    Date.now() > endDate ? ReadyStatus(theme) : PendingStatus(theme)
+  else return timeClaimed > 0 ? CLAIMED : (
+    Date.now() > endDate ? READY : PENDING
   )
+}
+
+export const getStatus = (reward, theme) => {
+  const statusId = getStatusId(reward)
+  switch(statusId) {
+  case PENDING:
+    return PendingStatus(theme)
+  case READY:
+    return ReadyStatus(theme)
+  case CLAIMED:
+    return ClaimedStatus(theme)
+  }
 }
