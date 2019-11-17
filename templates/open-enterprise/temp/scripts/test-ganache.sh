@@ -11,6 +11,10 @@ cleanup() {
   if [ -n "$pid" ] && ps -p $pid > /dev/null; then
     kill -9 $pid
   fi
+  # Kill the TestRPC instance
+  if [ -n "$rpc_pid" ] && ps -p $rpc_pid > /dev/null; then
+    kill -9 $rpc_pid
+  fi
 
   # Remove local deploy file in case it was created
   clean_deploy
@@ -49,7 +53,11 @@ start_testrpc() {
 
 deploy_standard_bounties() {
   echo "Deploying bounties contract..."
-  BOUNTIES=$(npm run deploy:bounties | tail -n 1)
+  if [ "$SOLIDITY_COVERAGE" = true ]; then
+    BOUNTIES=$(npm run deploy:bounties:coverage | tail -n 1)
+  else
+    BOUNTIES=$(npm run deploy:bounties | tail -n 1)
+  fi
 }
 
 deploy_template_rpc() {
@@ -59,7 +67,7 @@ deploy_template_rpc() {
 
 deploy_template_coverage() {
   echo "Deploying template..."
-  npm run deploy:coverage
+  npm run deploy:coverage -- --s ${BOUNTIES}
 }
 
 clean_deploy() {
@@ -80,6 +88,7 @@ if [ "$SOLIDITY_COVERAGE" = true ]; then
   setup_coverage_variables
   start_testrpc
   clean_deploy
+  deploy_standard_bounties
   deploy_template_coverage
   measure_coverage
 else

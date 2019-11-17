@@ -27,6 +27,7 @@ contract BaseOEApps is BaseCache {
     string constant private ERROR_BOUNTIES_NOT_CONTRACT = "BOUNTIES_REGISTRY_NOT_CONTRACT";
     address constant internal ANY_ENTITY = address(-1);
     Bounties internal bountiesRegistry;
+    address[] private WHITELIST = [address(0), address(0)];
 
     /**
     * @dev Constructor for Open Enterprise Apps DAO
@@ -43,6 +44,7 @@ contract BaseOEApps is BaseCache {
         require(isContract(address(_deployedSetupContracts[4])), ERROR_BOUNTIES_NOT_CONTRACT);
 
         bountiesRegistry = Bounties(_deployedSetupContracts[4]);
+        WHITELIST[1] = address(bountiesRegistry);
     }
 
     /* ADDRESS-BOOK */
@@ -118,7 +120,8 @@ contract BaseOEApps is BaseCache {
     /* DISCUSSIONS */
 
     function _installDiscussionsApp(Kernel _dao) internal returns (DiscussionApp) {
-        return DiscussionApp(_installNonDefaultApp(_dao, DISCUSSIONS_APP_ID));
+        bytes memory initializeData = abi.encodeWithSelector(DiscussionApp(0).initialize.selector);
+        return DiscussionApp(_installNonDefaultApp(_dao, DISCUSSIONS_APP_ID, initializeData));
     }
 
     function _createDiscussionsPermissions(ACL _acl, DiscussionApp _discussions, address _grantee, address _manager) internal {
@@ -169,6 +172,13 @@ contract BaseOEApps is BaseCache {
         internal
     {
         _acl.createPermission(_grantee, _rewards, _rewards.ADD_REWARD_ROLE(), _manager);
+    }
+
+    /* WHITELIST */
+    function _installWhitelistOracleApp(Kernel _dao, address _vault) internal returns (WhitelistOracle) {
+        address[] memory list = WHITELIST;
+        list[0] = _vault;
+        return _installWhitelistOracleApp(_dao, list);
     }
 
     function _grantVaultPermissions(ACL _acl, Vault _vault, Allocations _allocations, Projects _projects, Rewards _rewards) internal {

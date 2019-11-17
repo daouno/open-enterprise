@@ -52,21 +52,22 @@ contract OpenEnterpriseTemplate is BaseOEApps {
         _validateTokenSettings(_members2, _stakes2);
         (ACL acl, Kernel dao, Vault vault) = _popBaseCache(msg.sender);
         (MiniMeToken token1, MiniMeToken token2) = _popTokensCache(msg.sender);
-        TokenManager tokenManager1 = _installTokenManagerApp(dao, token1, _tokenBools[1] ? false : _tokenBools[0],  _tokenBools[1] ? MEMBERSHIP_MAX_PER_ACCOUNT : TOKEN_MAX_PER_ACCOUNT);
+        TokenManager tokenManager1 = _installTokenManagerApp(dao, token1, !_tokenBools[1],  _tokenBools[1] ? MEMBERSHIP_MAX_PER_ACCOUNT : TOKEN_MAX_PER_ACCOUNT);
         TokenManager tokenManager2 = TokenManager(0);
         WhitelistOracle whitelist = WhitelistOracle(0);
-        if (address(token2) != address(0)) {
-            whitelist = _installWhitelistOracleApp(dao, vault, bountiesRegistry);
-            /* Code to get around WhitelistOracle initialization issue
-            whitelist = _installWhitelistOracleApp(dao);
-            _createPermissionForTemplate(acl, whitelist, whitelist.ADD_SENDER_ROLE());
-            whitelist.addSender(address(vault));
-            whitelist.addSender(address(bountiesRegistry));
-            _removePermissionFromTemplate(acl, whitelist, whitelist.ADD_SENDER_ROLE());
-            */
-            tokenManager2 = _installTokenManagerApp(dao, token2, true, TOKEN_MAX_PER_ACCOUNT);
-            _mintTokens(acl, tokenManager2, _members2, _stakes2);
-            _setOracle(acl, tokenManager2, whitelist);
+        if (address(token2) != address(0) || (_tokenBools[0] && !_tokenBools[1])) {
+            whitelist = _installWhitelistOracleApp(dao, vault);
+            //If token 1 is a reputation token
+            if(_tokenBools[0]){
+              _setOracle(acl, tokenManager1, whitelist);
+            }
+            //If token 2 is set (token 2 is always a reputation token)
+            if(address(token2) != address(0)){
+              tokenManager2 = _installTokenManagerApp(dao, token2, true, TOKEN_MAX_PER_ACCOUNT);
+              _mintTokens(acl, tokenManager2, _members2, _stakes2);
+              _setOracle(acl, tokenManager2, whitelist);
+            }
+
         }
         _mintTokens(acl, tokenManager1, _members1, _stakes1);
         _cacheBase(acl, dao, vault, msg.sender);

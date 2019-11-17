@@ -1,4 +1,5 @@
 /* global artifacts, assert, before, context, contract, it, web3 */
+const BigNumber = require('bignumber.js')
 const { hash: namehash } = require('eth-ens-namehash')
 const encodeCall = require('@aragon/templates-shared/helpers/encodeCall')
 const assertRevert = require('@aragon/templates-shared/helpers/assertRevert')(web3)
@@ -68,11 +69,17 @@ contract('OpenEnterpriseTemplate', ([ owner, member1, member2 ]) => {
     return await template.sendTransaction(encodeCall(newTokenManagersFn, params, txParams))
   }
 
-  const loadDAO = async (tokensAndInstance, tokenManagers, finalizedDAO, apps = { discussions: false } ) => {
+  const loadDAO = async (tokensAndInstance, tokenManagers, finalizedDAO, apps = { token2: false, discussions: false } ) => {
+    //Reset token2 and tokenManager2
+    token2 = null
+    tokenManager2 = null
+
     dao = Kernel.at(getEventArgument(tokensAndInstance, 'DeployDao', 'dao'))
 
     token1 = MiniMeToken.at(getEventArgument(tokensAndInstance, 'DeployToken', 'token', 0))
-    token2 = MiniMeToken.at(getEventArgument(tokensAndInstance, 'DeployToken', 'token', 1))
+    if(apps.token2){
+      token2 = MiniMeToken.at(getEventArgument(tokensAndInstance, 'DeployToken', 'token', 1))
+    }
     acl = ACL.at(await dao.acl())
     const managerApps = getInstalledAppsById(tokenManagers)
     const finalizedApps = getInstalledAppsById(finalizedDAO)
@@ -94,9 +101,12 @@ contract('OpenEnterpriseTemplate', ([ owner, member1, member2 ]) => {
     assert.equal(installedApps.finance.length, 1, 'should have installed 1 finance app')
     finance = Finance.at(installedApps.finance[0])
 
-    assert.equal(installedApps['token-manager-custom'].length, 2, 'should have installed 2 token manager apps')
+    assert.equal(installedApps['token-manager-custom'].length, apps.token2 ? 2 : 1, `should have installed ${apps.token2 ? 2 : 1} token manager apps`)
     tokenManager1 = TokenManager.at(installedApps['token-manager-custom'][0])
-    tokenManager2 = TokenManager.at(installedApps['token-manager-custom'][1])
+    if(apps.token2){
+      tokenManager2 = TokenManager.at(installedApps['token-manager-custom'][1])
+    }
+
 
     assert.equal(installedApps.vault.length, 1, 'should have installed 1 vault app')
     vault = Vault.at(installedApps.vault[0])
@@ -132,15 +142,17 @@ contract('OpenEnterpriseTemplate', ([ owner, member1, member2 ]) => {
     it('creates a new token', async () => {
       assert.equal(await token1.name(), TOKEN_NAME)
       assert.equal(await token1.symbol(), TOKEN_SYMBOL)
-      assert.equal(await token1.transfersEnabled(), true)
+      //assert.equal(await token1.transfersEnabled(), true)
       assert.equal((await token1.decimals()).toString(), 18)
     })
 
     it('mints requested amounts for the members', async () => {
       assert.equal((await token1.totalSupply()).toString(), MEMBERS.length)
       for (const holder of MEMBERS) assert.equal((await token1.balanceOf(holder)).toString(), 1)
-      assert.equal((await token2.totalSupply()).toString(), MEMBERS.length)
-      for (const holder of MEMBERS) assert.equal((await token2.balanceOf(holder)).toString(), 1)
+      if(token2) {
+        assert.equal((await token2.totalSupply()).toString(), MEMBERS.length)
+        for (const holder of MEMBERS) assert.equal((await token2.balanceOf(holder)).toString(), 1)
+      }
     })
 
     it('should have voting app correctly setup', async () => {
@@ -157,8 +169,10 @@ contract('OpenEnterpriseTemplate', ([ owner, member1, member2 ]) => {
     it('should have token manager app correctly setup', async () => {
       assert.isTrue(await tokenManager1.hasInitialized(), 'token manager not initialized')
       assert.equal(await tokenManager1.token(), token1.address)
-      assert.isTrue(await tokenManager2.hasInitialized(), 'token manager not initialized')
-      assert.equal(await tokenManager2.token(), token2.address)
+      if(token2) {
+        assert.isTrue(await tokenManager2.hasInitialized(), 'token manager not initialized')
+        assert.equal(await tokenManager2.token(), token2.address)
+      }
 
       // await assertRole(acl, tokenManager, voting, 'MINT_ROLE')
       // await assertRole(acl, tokenManager, voting, 'BURN_ROLE')
@@ -261,7 +275,7 @@ contract('OpenEnterpriseTemplate', ([ owner, member1, member2 ]) => {
 
   const itSetupsDiscussionsAppCorrectly = () => {
     it('should have discussions app correctly setup', async () => {
-      // assert.isTrue(await discussions.hasInitialized(), 'discussions not initialized')
+      assert.isTrue(await discussions.hasInitialized(), 'discussions not initialized')
 
       // TODO: extra assertions here
       // assert.equal(await discussions.feed(), feed.address)
@@ -276,6 +290,64 @@ contract('OpenEnterpriseTemplate', ([ owner, member1, member2 ]) => {
       // const expectedGrantee = ZERO_ADDRESS // TODO: This should be any address
 
       // await assertRole(acl, discussions, voting, 'ADD_BONUS_ROLE', expectedGrantee)
+    })
+  }
+
+  const token1IsTransferrable = () => {
+    it('transfers enabled', async () => {
+      const balanceBefore = BigNumber(await token1.balanceOf(member1))
+      await token1.transfer(member2, 1, {from: member1})
+      const balanceAfter = BigNumber(await token1.balanceOf(member1))
+      assert.equal(balanceBefore.minus(balanceAfter).eq(1), true)
+    })
+  }
+
+  const token2IsTransferrable = () => {
+    it('transfers enabled', async () => {
+      const balanceBefore = BigNumber(await token2.balanceOf(member1))
+      await token2.transfer(member2, 1, {from: member1})
+      const balanceAfter = BigNumber(await token2.balanceOf(member1))
+      assert.equal(balanceBefore.minus(balanceAfter).eq(1), true)
+    })
+  }
+
+  const token1IsNotTransferrable = () => {
+    it('transfer reverts', async () => {
+      return assertRevert(async () => {
+        await token1.transfer(member2, 1, {from: member1})
+      })
+    })
+  }
+
+  const token2IsNotTransferrable = () => {
+    it('transfer reverts', async () => {
+      return assertRevert(async () => {
+        await token2.transfer(member2, 1, {from: member1})
+      })
+    })
+  }
+
+  const votingUsesTokenManager1 = () => {
+    it('should have given voting permissions to token manager 1', async () => {
+      await assertRole(acl, voting, voting, 'CREATE_VOTES_ROLE', tokenManager1)
+    })
+  }
+
+  const votingUsesTokenManager2 = () => {
+    it('should have given voting permissions to token manager 2', async () => {
+      await assertRole(acl, voting, voting, 'CREATE_VOTES_ROLE', tokenManager2)
+    })
+  }
+
+  const dotUsesTokenManager1 = () => {
+    it('should have given dot voting permissions to token manager 1', async () => {
+      await assertRole(acl, dotVoting, voting, 'ROLE_CREATE_VOTES', tokenManager1)
+    })
+  }
+
+  const dotUsesTokenManager2 = () => {
+    it('should have given dot voting permissions to token manager 2', async () => {
+      await assertRole(acl, dotVoting, voting, 'ROLE_CREATE_VOTES', tokenManager2)
     })
   }
 
@@ -326,16 +398,26 @@ contract('OpenEnterpriseTemplate', ([ owner, member1, member2 ]) => {
         })
       }
 
-      const createDAO = (useDiscussions = false, periods = [ 0, 0 ]) => {
+      const createDAO = ({tokenName2 = '',
+                          tokenSymbol2 = '',
+                          members2 = [member1],
+                          stakes2 = [1],
+                          primaryReputation = false, //Bool to make primary token a reputation style token (transfers are restricted to vault and bountiesRegistry)
+                          primaryMembership = false, //Bool to restrict primary token to membership style (limit 1 per person)
+                          secondaryDot = false, //Bool to give secondary token control of the Dot Voting app
+                          secondaryVoting = false, //Bool to give secondary token control of the Voting app
+                          useDiscussions = false,  //Bool to enable the Discussions app in the DAO
+                          periods = [ 0, 0 ],
+                        }) => {
         before('create open enterprise entity', async () => {
           daoID = randomId()
-          tokensAndInstance = await template.newTokensAndInstance(daoID, TOKEN_NAME, TOKEN_SYMBOL, 'Reputation', 'REP', COMBINED_SETTINGS, [false, false], {gas: MAX_GAS})
-          //console.log('newTokensAndInstance Gas Used: ', tokensAndInstance.receipt.gasUsed)
-          tokenManagers = await template.newTokenManagers(MEMBERS, STAKES, MEMBERS, STAKES, [true, false], {gas: MAX_GAS})
-          //console.log('newTokenManagers Gas Used: ', tokenManagers.receipt.gasUsed)
+          tokensAndInstance = await template.newTokensAndInstance(daoID, TOKEN_NAME, TOKEN_SYMBOL, tokenName2, tokenSymbol2, COMBINED_SETTINGS, [secondaryDot, secondaryVoting], {gas: MAX_GAS})
+          console.log('newTokensAndInstance Gas Used: ', tokensAndInstance.receipt.gasUsed)
+          tokenManagers = await template.newTokenManagers(MEMBERS, STAKES, members2, stakes2, [primaryReputation, primaryMembership], {gas: MAX_GAS})
+          console.log('newTokenManagers Gas Used: ', tokenManagers.receipt.gasUsed)
           finalizedDAO = await template.finalizeDao(periods, useDiscussions, {gas: MAX_GAS})
-          //console.log('finalizeDao Gas Used: ', finalizedDAO.receipt.gasUsed)
-          await loadDAO(tokensAndInstance, tokenManagers, finalizedDAO, { discussions: useDiscussions })
+          console.log('finalizeDao Gas Used: ', finalizedDAO.receipt.gasUsed)
+          await loadDAO(tokensAndInstance, tokenManagers, finalizedDAO, { token2: tokenSymbol2, discussions: useDiscussions })
         })
       }
 
@@ -364,16 +446,16 @@ contract('OpenEnterpriseTemplate', ([ owner, member1, member2 ]) => {
         context('when requesting a discussions app', () => {
           const USE_DISCUSSIONS = true
 
-          createDAO(USE_DISCUSSIONS, PERIODS)
+          createDAO({useDiscussions: USE_DISCUSSIONS, periods: PERIODS})
           //itCostsUpTo(5.05e6)
-          //itSetupsDAOCorrectly(...PERIODS)
-          //itSetupsDiscussionsAppCorrectly()
+          itSetupsDAOCorrectly(...PERIODS)
+          itSetupsDiscussionsAppCorrectly()
         })
 
         context('when requesting a vault app', () => {
           const USE_DISCUSSIONS = false
 
-          createDAO(USE_DISCUSSIONS, PERIODS)
+          createDAO({useDiscussions: USE_DISCUSSIONS, periods: PERIODS})
           //itCostsUpTo(5e6)
           itSetupsDAOCorrectly(...PERIODS)
           itSetupsVaultAppCorrectly()
@@ -386,7 +468,7 @@ contract('OpenEnterpriseTemplate', ([ owner, member1, member2 ]) => {
         context('when requesting a discussions app', () => {
           const USE_DISCUSSIONS = true
 
-          createDAO(USE_DISCUSSIONS, PERIODS)
+          createDAO({useDiscussions: USE_DISCUSSIONS, periods: PERIODS})
           //itCostsUpTo(5.05e6)
           itSetupsDAOCorrectly(...PERIODS)
           itSetupsDiscussionsAppCorrectly()
@@ -395,10 +477,134 @@ contract('OpenEnterpriseTemplate', ([ owner, member1, member2 ]) => {
         context('when requesting a vault app', () => {
           const USE_DISCUSSIONS = false
 
-          createDAO(USE_DISCUSSIONS, PERIODS)
+          createDAO({useDiscussions: USE_DISCUSSIONS, periods: PERIODS})
           // itCostsUpTo(6.79e6)
           itSetupsDAOCorrectly(...PERIODS)
           itSetupsVaultAppCorrectly()
+        })
+
+        context('when requesting a second token', () => {
+          const USE_DISCUSSIONS = false
+
+          createDAO({
+            tokenName2: 'Reputation',
+            tokenSymbol2: 'REP',
+            members2: MEMBERS,
+            stakes2: STAKES,
+            useDiscussions: USE_DISCUSSIONS,
+            periods: PERIODS})
+          //itCostsUpTo(5.05e6)
+          itSetupsDAOCorrectly(...PERIODS)
+          itSetupsVaultAppCorrectly()
+          token1IsTransferrable()
+          token2IsNotTransferrable()
+        })
+      })
+
+      context('when creating a membership token', () => {
+        const MEMBERS2 = [member1, member2]
+        const STAKES2 = [1e18, 1e18]
+        const MEMBERSHIP = true
+        const USE_DISCUSSIONS = false
+        const PERIODS = Array(2).fill(0) // use default
+
+        context('when requesting one token', () => {
+          createDAO({
+            members2: MEMBERS,
+            stakes2: STAKES,
+            primaryMembership: MEMBERSHIP,
+            useDiscussions: USE_DISCUSSIONS,
+            periods: PERIODS})
+          //itCostsUpTo(5e6)
+          itSetupsDAOCorrectly(...PERIODS)
+          token1IsNotTransferrable()
+        })
+
+        context('when requesting two tokens', () => {
+          createDAO({
+            tokenName2: 'Reputation',
+            tokenSymbol2: 'REP',
+            members2: MEMBERS,
+            stakes2: STAKES,
+            primaryMembership: MEMBERSHIP,
+            useDiscussions: USE_DISCUSSIONS,
+            periods: PERIODS})
+          //itCostsUpTo(5.05e6)
+          itSetupsDAOCorrectly(...PERIODS)
+          token1IsNotTransferrable()
+          token2IsNotTransferrable()
+        })
+
+      })
+
+      context('when creating a reputation token', () => {
+        const MEMBERS2 = [member1, member2]
+        const STAKES2 = [1e18, 1e18]
+        const REPUTATION = true
+        const USE_DISCUSSIONS = false
+        const PERIODS = Array(2).fill(0) // use default
+
+        context('when requesting one token', () => {
+          createDAO({
+            members2: MEMBERS,
+            stakes2: STAKES,
+            primaryReputation: REPUTATION,
+            useDiscussions: USE_DISCUSSIONS,
+            periods: PERIODS})
+          //itCostsUpTo(5e6)
+          itSetupsDAOCorrectly(...PERIODS)
+          token1IsNotTransferrable()
+        })
+
+      })
+
+      context('when creating second token with voting permission', () => {
+        const PERIODS = Array(2).fill(0) // use default
+
+        context('when giving voting permission to token manager 2', () => {
+          createDAO({
+            tokenName2: 'Reputation',
+            tokenSymbol2: 'REP',
+            members2: MEMBERS,
+            stakes2: STAKES,
+            secondaryVoting: true,
+            periods: PERIODS})
+          //itCostsUpTo(5.05e6)
+          itSetupsDAOCorrectly(...PERIODS)
+          token2IsNotTransferrable()
+          votingUsesTokenManager2()
+          dotUsesTokenManager1()
+        })
+
+        context('when giving dot voting permission to token manager 2', () => {
+          createDAO({
+            tokenName2: 'Reputation',
+            tokenSymbol2: 'REP',
+            members2: MEMBERS,
+            stakes2: STAKES,
+            secondaryDot: true,
+            periods: PERIODS})
+          //itCostsUpTo(5.05e6)
+          itSetupsDAOCorrectly(...PERIODS)
+          token2IsNotTransferrable()
+          votingUsesTokenManager1()
+          dotUsesTokenManager2()
+        })
+
+        context('when giving voting & dot voting permission to token manager 2', () => {
+          createDAO({
+            tokenName2: 'Reputation',
+            tokenSymbol2: 'REP',
+            members2: MEMBERS,
+            stakes2: STAKES,
+            secondaryDot: true,
+            secondaryVoting: true,
+            periods: PERIODS})
+          //itCostsUpTo(5.05e6)
+          itSetupsDAOCorrectly(...PERIODS)
+          token2IsNotTransferrable()
+          votingUsesTokenManager2()
+          dotUsesTokenManager2()  
         })
       })
     })
