@@ -16,6 +16,7 @@ import {
   Text,
   TextInput,
   DropDown,
+  LoadingRing,
   useTheme,
   GU,
   Button,
@@ -70,6 +71,7 @@ const BountyUpdate = ({
   issue,
   bounty,
   submitBounties,
+  submitting,
   description,
   tokens,
   updateBounty,
@@ -101,8 +103,11 @@ const BountyUpdate = ({
         css={`margin: ${2 * GU}px 0`}
         onSubmit={submitBounties}
         description={description}
-        submitText="Submit"
-        submitDisabled={submitDisabled}
+        submitText={submitting
+          ? <><LoadingRing /> Saving...</>
+          : 'Submit'
+        }
+        submitDisabled={submitDisabled || submitting}
       >
         <FormField
           input={
@@ -200,6 +205,7 @@ BountyUpdate.propTypes = {
   issue: issueShape,
   bounty: PropTypes.object.isRequired,
   submitBounties: PropTypes.func.isRequired,
+  submitting: PropTypes.bool.isRequired,
   description: PropTypes.string.isRequired,
   tokens: PropTypes.array.isRequired,
   updateBounty: PropTypes.func.isRequired,
@@ -208,6 +214,7 @@ BountyUpdate.propTypes = {
 const FundForm = ({
   issues,
   bounties,
+  submitting,
   submitBounties,
   description,
   tokens,
@@ -267,8 +274,11 @@ const FundForm = ({
         css={`margin: ${2 * GU}px 0`}
         onSubmit={submitBounties}
         description={description}
-        submitText={issues.length > 1 ? 'Fund Issues' : 'Fund Issue'}
-        submitDisabled={submitDisabled}
+        submitText={submitting
+          ? <><LoadingRing /> Saving...</>
+          : issues.length > 1 ? 'Fund Issues' : 'Fund Issue'
+        }
+        submitDisabled={submitDisabled || submitting}
       >
         <FormField
           label="Description"
@@ -316,6 +326,7 @@ FundForm.propTypes = {
   issues: PropTypes.arrayOf(issueShape),
   bounties: PropTypes.object.isRequired,
   submitBounties: PropTypes.func.isRequired,
+  submitting: PropTypes.bool.isRequired,
   description: PropTypes.string.isRequired,
   tokens: PropTypes.array.isRequired,
   descriptionChange: PropTypes.func.isRequired,
@@ -327,6 +338,7 @@ const FundIssues = ({ issues, mode }) => {
   const { api, appState } = useAragonApi()
   const { bountySettings } = appState
   const { closePanel } = usePanelManagement()
+  const [ submitting, setSubmitting ] = useState(false)
   const [ description, setDescription ] = useState('')
   const tokens = useMemo(() => {
     if (bountySettings.fundingModel === 'Fixed') return appState.tokens
@@ -361,6 +373,8 @@ const FundIssues = ({ issues, mode }) => {
 
   const submitBounties = useCallback(async e => {
     e.preventDefault()
+
+    setSubmitting(true)
 
     const repoIds = []
     const issueNumbers = []
@@ -427,6 +441,7 @@ const FundIssues = ({ issues, mode }) => {
         issue={issue}
         bounty={bounty}
         submitBounties={submitBounties}
+        submitting={submitting}
         description={description}
         tokens={tokens}
         updateBounty={updateBounty(issue.id)}
@@ -447,6 +462,7 @@ const FundIssues = ({ issues, mode }) => {
       {(bountylessIssues.length > 0) && (
         <FundForm
           submitBounties={submitBounties}
+          submitting={submitting}
           issues={bountylessIssues}
           bounties={bounties}
           description={description}
